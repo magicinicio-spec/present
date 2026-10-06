@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultas sobre múltiples tablas en SQL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #111111;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .viewport-wrapper {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000000;
+        }
+
+        .stage {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            background: #111111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        /* Fondo SVG sofisticado */
+        svg.bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .slides-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            z-index: 5;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #111111 0%, #000000 100%);
+            display: none;
+            flex-direction: column;
+            padding: 60px 80px;
+            overflow: hidden;
+            justify-content: center;
+            background-image:
+                radial-gradient(circle at 20% 50%, rgba(0, 217, 89, 0.06) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(245, 245, 247, 0.04) 0%, transparent 50%),
+                linear-gradient(135deg, #111111 0%, #000000 100%);
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00d959, #0071e3, transparent);
+        }
+
+        .slide.active {
+            display: flex;
+            animation: slideInFade 0.6s ease-out;
+        }
+
+        @keyframes slideInFade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+        }
+
+        .slide-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+        }
+
+        .slide-title {
+            font-size: 48px;
+            font-weight: 700;
+            color: #f5f5f7;
+            line-height: 1.2;
+            max-width: 85%;
+        }
+
+        .slide-number {
+            font-size: 12px;
+            color: #00d959;
+            font-family: 'Source Code Pro', monospace;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: #cccccc;
+            margin-bottom: 30px;
+            font-weight: 400;
+            line-height: 1.5;
+        }
+
+        .text-content {
+            font-size: 17px;
+            color: #e2e8f0;
+            line-height: 1.47;
+            margin-bottom: 20px;
+        }
+
+        .accent {
+            color: #00d959;
+            font-weight: 600;
+        }
+
+        .bullet-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+
+        .bullet-list li {
+            font-size: 16px;
+            color: #cccccc;
+            margin-bottom: 16px;
+            padding-left: 28px;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        .bullet-list li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: #00d959;
+            font-size: 18px;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 217, 89, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 20px 0;
+            font-family: 'Source Code Pro', monospace;
+            font-size: 13px;
+            color: #00d959;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 13px;
+        }
+
+        .data-table th {
+            background: rgba(0, 217, 89, 0.15);
+            color: #00d959;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border: 1px solid rgba(0, 217, 89, 0.2);
+            font-family: 'Source Code Pro', monospace;
+        }
+
+        .data-table td {
+            padding: 10px 12px;
+            color: #cccccc;
+            border: 1px solid rgba(0, 217, 89, 0.15);
+        }
+
+        .data-table tr:nth-child(even) {
+            background: rgba(0, 217, 89, 0.08);
+        }
+
+        .card {
+            background: rgba(51, 51, 54, 0.5);
+            border: 1px solid rgba(0, 217, 89, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+
+        .column-item {
+            background: rgba(51, 51, 54, 0.4);
+            border-left: 3px solid #00d959;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .nav-dots {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .nav-dot {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: rgba(100, 116, 139, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-dot:hover {
+            background: rgba(0, 217, 89, 0.5);
+        }
+
+        .nav-dot.active {
+            background: #00d959;
+            transform: scale(1.4);
+            box-shadow: 0 0 16px rgba(0, 217, 89, 0.6);
+        }
+
+        .keyboard-hint {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            font-size: 11px;
+            color: #64748b;
+            font-family: 'Source Code Pro', monospace;
+            opacity: 0.6;
+            z-index: 100;
+        }
+
+        .diagram-node {
+            display: inline-block;
+            padding: 12px 20px;
+            background: rgba(0, 217, 89, 0.15);
+            border: 1px solid #00d959;
+            border-radius: 8px;
+            color: #00d959;
+            font-weight: 600;
+            font-family: 'Source Code Pro', monospace;
+            font-size: 12px;
+            margin: 0 8px;
+            text-transform: uppercase;
+        }
+
+        .diagram-arrow {
+            display: inline-block;
+            color: #00d959;
+            margin: 0 10px;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="viewport-wrapper">
+        <div class="stage">
+            <!-- Fondo SVG -->
+            <svg class="bg-pattern" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+                <defs>
+                    <pattern id="sqlGrid" width="100" height="100" patternUnits="userSpaceOnUse">
+                        <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(0, 217, 89, 0.08)" stroke-width="1.5"/>
+                    </pattern>
+                    <pattern id="sqlHex" width="120" height="120" patternUnits="userSpaceOnUse">
+                        <circle cx="60" cy="60" r="2.5" fill="rgba(0, 113, 227, 0.12)"/>
+                        <path d="M 60 40 L 80 50 L 80 70 L 60 80 L 40 70 L 40 50 Z" fill="none" stroke="rgba(0, 217, 89, 0.08)" stroke-width="1"/>
+                    </pattern>
+                    <radialGradient id="sqlGlow1" cx="20%" cy="50%">
+                        <stop offset="0%" style="stop-color:#00d959;stop-opacity:0.08"/>
+                        <stop offset="100%" style="stop-color:#00d959;stop-opacity:0"/>
+                    </radialGradient>
+                </defs>
+                <rect width="1920" height="1080" fill="url(#sqlGrid)"/>
+                <rect width="1920" height="1080" fill="url(#sqlHex)"/>
+                <circle cx="384" cy="540" r="600" fill="url(#sqlGlow1)"/>
+            </svg>
+
+            <div class="slides-container">
+                <!-- SLIDE 1: PORTADA -->
+                <div class="slide active">
+                    <div class="content-wrapper">
+                        <div style="text-align: center; padding: 60px 0;">
+                            <div style="font-size: 56px; margin-bottom: 30px;">💾</div>
+                            <h1 class="slide-title" style="text-align: center; max-width: 100%; margin-bottom: 20px;">Consultas sobre múltiples tablas en SQL</h1>
+                            <p class="subtitle" style="text-align: center;">Unidad III — Consultas y Lenguaje de Manipulación de Datos</p>
+                            <div class="card" style="max-width: 700px; margin: 50px auto 0;">
+                                <p style="font-size: 15px; color: #cccccc; line-height: 1.6;">Aprende a relacionar información distribuida en varias tablas y construye consultas SQL eficientes usando JOIN.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 2: OBJETIVOS -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">Objetivos de la clase</h2>
+                        <span class="slide-number">02</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <ul class="bullet-list">
+                            <li>Comprender por qué se necesitan <span class="accent">múltiples tablas</span></li>
+                            <li>Identificar <span class="accent">relaciones entre tablas</span> usando PRIMARY KEY y FOREIGN KEY</li>
+                            <li>Dominar los diferentes tipos de <span class="accent">JOIN</span></li>
+                            <li>Combinar información de <span class="accent">múltiples tablas</span> en una sola consulta</li>
+                            <li>Construir consultas <span class="accent">complejas y eficientes</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- SLIDE 3: POR QUÉ MÚLTIPLES TABLAS -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">¿Por qué múltiples tablas?</h2>
+                        <span class="slide-number">03</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <p class="text-content">Una base de datos relacional <span class="accent">separa la información</span> para evitar redundancia e integridad de datos.</p>
+                        <div class="two-column">
+                            <div class="column-item">
+                                <div style="font-family: 'Source Code Pro', monospace; color: #00d959; font-weight: 600; font-size: 13px; margin-bottom: 12px; text-transform: uppercase;">👤 Clientes</div>
+                                <div style="font-size: 13px; color: #cccccc; line-height: 1.8;">🔑 id_cliente<br>📝 nombre<br>✉️ correo</div>
+                            </div>
+                            <div class="column-item">
+                                <div style="font-family: 'Source Code Pro', monospace; color: #00d959; font-weight: 600; font-size: 13px; margin-bottom: 12px; text-transform: uppercase;">🛒 Pedidos</div>
+                                <div style="font-size: 13px; color: #cccccc; line-height: 1.8;">🔑 id_pedido<br>📅 fecha<br>💰 total<br>🔗 id_cliente</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 4: RELACIONES -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">Relación entre tablas</h2>
+                        <span class="slide-number">04</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <div class="two-column">
+                            <div class="column-item">
+                                <div style="color: #00d959; font-weight: 600; margin-bottom: 8px;">🔑 PRIMARY KEY</div>
+                                <p style="font-size: 14px; color: #cccccc;">Identifica únicamente cada registro. No puede repetirse.</p>
+                            </div>
+                            <div class="column-item">
+                                <div style="color: #00d959; font-weight: 600; margin-bottom: 8px;">🔗 FOREIGN KEY</div>
+                                <p style="font-size: 14px; color: #cccccc;">Referencia la clave primaria de otra tabla.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 5: ¿QUÉ ES UN JOIN? -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">¿Qué es un JOIN?</h2>
+                        <span class="slide-number">05</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <div class="card" style="border-left: 4px solid #00d959;">
+                            <p style="font-size: 16px; color: #f5f5f7; line-height: 1.6;">Un <span class="accent">JOIN</span> combina filas de dos o más tablas utilizando una <span class="accent">condición de relación</span> entre ellas.</p>
+                        </div>
+                        <div class="code-block">
+SELECT columnas<br>
+FROM tabla1<br>
+JOIN tabla2<br>
+&nbsp;&nbsp;&nbsp;&nbsp;ON tabla1.clave = tabla2.clave;
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 6: ESTRUCTURA CON JOIN -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">Estructura de consulta con JOIN</h2>
+                        <span class="slide-number">06</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <div class="code-block">
+<span style="color: #0071e3;">SELECT</span> clientes.nombre, pedidos.total<br>
+<span style="color: #0071e3;">FROM</span> clientes<br>
+<span style="color: #0071e3;">INNER JOIN</span> pedidos<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #0071e3;">ON</span> clientes.id_cliente = pedidos.id_cliente;
+                        </div>
+                        <ul class="bullet-list" style="font-size: 15px;">
+                            <li><span class="accent">SELECT</span>: columnas que deseas ver</li>
+                            <li><span class="accent">FROM</span>: tabla principal</li>
+                            <li><span class="accent">INNER JOIN</span>: tipo de unión</li>
+                            <li><span class="accent">ON</span>: condición de relación</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- SLIDE 7: INNER JOIN -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">INNER JOIN</h2>
+                        <span class="slide-number">07</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <div class="card" style="border-left: 4px solid #00d959;">
+                            <p style="font-size: 15px; color: #f5f5f7; line-height: 1.6;"><span class="accent">INNER JOIN</span> devuelve <span class="accent">solo los registros</span> que tienen coincidencia en <span class="accent">ambas tablas</span>.</p>
+                        </div>
+                        <div class="code-block">
+<span style="color: #0071e3;">SELECT</span> c.nombre, p.fecha, p.total<br>
+<span style="color: #0071e3;">FROM</span> clientes c<br>
+<span style="color: #0071e3;">INNER JOIN</span> pedidos p<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #0071e3;">ON</span> c.id_cliente = p.id_cliente;
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 8: EJEMPLO PRÁCTICO -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">Ejemplo práctico: INNER JOIN</h2>
+                        <span class="slide-number">08</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <div class="two-column">
+                            <div style="background: rgba(51, 51, 54, 0.3); padding: 15px; border-radius: 8px;">
+                                <div style="color: #00d959; font-weight: 600; font-size: 12px; margin-bottom: 10px; text-transform: uppercase;">👤 Clientes</div>
+                                <table class="data-table" style="font-size: 12px;">
+                                    <tr><th>ID</th><th>Nombre</th></tr>
+                                    <tr><td>1</td><td>Ana</td></tr>
+                                    <tr><td>2</td><td>Luis</td></tr>
+                                    <tr><td>3</td><td>Carlos</td></tr>
+                                </table>
+                            </div>
+                            <div style="background: rgba(51, 51, 54, 0.3); padding: 15px; border-radius: 8px;">
+                                <div style="color: #00d959; font-weight: 600; font-size: 12px; margin-bottom: 10px; text-transform: uppercase;">🛒 Pedidos</div>
+                                <table class="data-table" style="font-size: 12px;">
+                                    <tr><th>ID</th><th>Cliente</th><th>Total</th></tr>
+                                    <tr><td>101</td><td>1</td><td>$500</td></tr>
+                                    <tr><td>102</td><td>1</td><td>$250</td></tr>
+                                    <tr><td>103</td><td>2</td><td>$800</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 9: LEFT JOIN -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">LEFT JOIN</h2>
+                        <span class="slide-number">09</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <div class="card" style="border-left: 4px solid #00d959;">
+                            <p style="font-size: 15px; color: #f5f5f7; line-height: 1.6;"><span class="accent">LEFT JOIN</span> conserva <span class="accent">todos los registros</span> de la tabla izquierda y agrega coincidencias de la derecha.</p>
+                        </div>
+                        <div class="code-block">
+<span style="color: #0071e3;">SELECT</span> c.nombre, p.total<br>
+<span style="color: #0071e3;">FROM</span> clientes c<br>
+<span style="color: #0071e3;">LEFT JOIN</span> pedidos p<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #0071e3;">ON</span> c.id_cliente = p.id_cliente;
+                        </div>
+                        <p class="text-content" style="margin-top: 20px;">⚠️ Los clientes sin pedidos aparecen con NULL en las columnas de pedidos.</p>
+                    </div>
+                </div>
+
+                <!-- SLIDE 10: COMPARACIÓN -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">INNER JOIN vs LEFT JOIN</h2>
+                        <span class="slide-number">10</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <div class="two-column">
+                            <div class="column-item">
+                                <div style="color: #00d959; font-weight: 600; margin-bottom: 8px;">🎯 INNER JOIN</div>
+                                <p style="font-size: 14px; color: #cccccc;">Solo coincidencias en ambas tablas.</p>
+                            </div>
+                            <div class="column-item">
+                                <div style="color: #00d959; font-weight: 600; margin-bottom: 8px;">📊 LEFT JOIN</div>
+                                <p style="font-size: 14px; color: #cccccc;">Todos de la izquierda + coincidencias.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 11: JOIN CON MULTIPLE TABLAS -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">JOIN con múltiples tablas</h2>
+                        <span class="slide-number">11</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <div class="diagram-node">👤 Clientes</div>
+                            <div class="diagram-arrow">→</div>
+                            <div class="diagram-node">🛒 Pedidos</div>
+                            <div class="diagram-arrow">→</div>
+                            <div class="diagram-node">📦 Detalle</div>
+                        </div>
+                        <div class="code-block" style="font-size: 12px;">
+<span style="color: #0071e3;">SELECT</span> c.nombre, p.id_pedido, d.cantidad<br>
+<span style="color: #0071e3;">FROM</span> clientes c<br>
+<span style="color: #0071e3;">INNER JOIN</span> pedidos p <span style="color: #0071e3;">ON</span> c.id_cliente = p.id_cliente<br>
+<span style="color: #0071e3;">INNER JOIN</span> detalle_pedido d <span style="color: #0071e3;">ON</span> p.id_pedido = d.id_pedido;
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 12: JOIN + WHERE -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">JOIN + WHERE</h2>
+                        <span class="slide-number">12</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <p class="text-content">Filtra los resultados después de combinar las tablas:</p>
+                        <div class="code-block">
+<span style="color: #0071e3;">SELECT</span> c.nombre, p.fecha, p.total<br>
+<span style="color: #0071e3;">FROM</span> clientes c<br>
+<span style="color: #0071e3;">INNER JOIN</span> pedidos p <span style="color: #0071e3;">ON</span> c.id_cliente = p.id_cliente<br>
+<span style="color: #0071e3;">WHERE</span> p.total > 500;
+                        </div>
+                        <div class="two-column" style="margin-top: 25px;">
+                            <div class="column-item">
+                                <div style="color: #00d959; font-weight: 600; font-size: 13px; margin-bottom: 6px;">ON</div>
+                                <p style="font-size: 13px; color: #cccccc;">Relaciona las tablas</p>
+                            </div>
+                            <div class="column-item">
+                                <div style="color: #0071e3; font-weight: 600; font-size: 13px; margin-bottom: 6px;">WHERE</div>
+                                <p style="font-size: 13px; color: #cccccc;">Filtra los resultados</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 13: ERRORES COMUNES -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">Errores comunes ⚠️</h2>
+                        <span class="slide-number">13</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <ul class="bullet-list" style="font-size: 15px;">
+                            <li>❌ No colocar la condición <span class="accent">ON</span></li>
+                            <li>❌ Relacionar <span class="accent">columnas incorrectas</span></li>
+                            <li>❌ Confundir <span class="accent">PRIMARY KEY</span> con <span class="accent">FOREIGN KEY</span></li>
+                            <li>❌ Generar <span class="accent">registros duplicados</span></li>
+                            <li>❌ Usar <span class="accent">INNER JOIN</span> cuando necesitas <span class="accent">LEFT JOIN</span></li>
+                            <li>❌ No usar <span class="accent">alias</span> en consultas complejas</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- SLIDE 14: CASO PRÁCTICO -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">Caso práctico</h2>
+                        <span class="slide-number">14</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <div class="card">
+                            <p style="font-size: 15px; color: #f5f5f7; margin-bottom: 15px;">📦 Una tienda desea consultar los pedidos realizados por sus clientes.</p>
+                            <p style="font-size: 12px; color: #cccccc; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Tablas disponibles:</p>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                                <div style="padding: 10px; background: rgba(0, 217, 89, 0.1); border-radius: 6px; color: #cccccc; font-size: 13px;">👤 CLIENTES</div>
+                                <div style="padding: 10px; background: rgba(0, 217, 89, 0.1); border-radius: 6px; color: #cccccc; font-size: 13px;">🛒 PEDIDOS</div>
+                                <div style="padding: 10px; background: rgba(0, 217, 89, 0.1); border-radius: 6px; color: #cccccc; font-size: 13px;">📦 DETALLE_PEDIDO</div>
+                                <div style="padding: 10px; background: rgba(0, 217, 89, 0.1); border-radius: 6px; color: #cccccc; font-size: 13px;">🏷️ PRODUCTOS</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 15: RESUMEN -->
+                <div class="slide">
+                    <div class="slide-header">
+                        <h2 class="slide-title">Resumen</h2>
+                        <span class="slide-number">15</span>
+                    </div>
+                    <div class="content-wrapper">
+                        <div style="text-align: center; font-size: 15px; color: #cccccc; line-height: 2.4;">
+                            <div style="color: #00d959; font-weight: 700; font-size: 16px;">📊 MÚLTIPLES TABLAS</div>
+                            <div style="color: #00d959; font-size: 20px;">↓</div>
+                            <div style="color: #00d959; font-weight: 700; font-size: 16px;">🔗 RELACIONES (PK / FK)</div>
+                            <div style="color: #00d959; font-size: 20px;">↓</div>
+                            <div style="color: #00d959; font-weight: 700; font-size: 16px;">🎯 JOIN (INNER / LEFT)</div>
+                            <div style="color: #00d959; font-size: 20px;">↓</div>
+                            <div style="color: #0071e3; font-weight: 700; font-size: 16px;">CONSULTAS COMPLEJAS</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 16: CIERRE -->
+                <div class="slide">
+                    <div class="content-wrapper">
+                        <div style="text-align: center;">
+                            <div style="font-size: 56px; margin-bottom: 30px;">💡</div>
+                            <h1 class="slide-title" style="text-align: center; max-width: 100%; margin-bottom: 20px;">Conecta información</h1>
+                            <div class="card" style="max-width: 700px; margin: 50px auto 0;">
+                                <p style="font-size: 16px; color: #f5f5f7; line-height: 1.8; font-style: italic;">"Una buena consulta no solo obtiene datos: <span class="accent">conecta información para convertirla en conocimiento.</span>"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav-dots"></div>
+    <div class="keyboard-hint">← / → o ESPACIO</div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        function showSlide(n) {
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (n + totalSlides) % totalSlides;
+            slides[currentSlide].classList.add('active');
+            updateNavDots();
+        }
+
+        function nextSlide() { showSlide(currentSlide + 1); }
+        function prevSlide() { showSlide(currentSlide - 1); }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+            else if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+        });
+
+        function createNavDots() {
+            const container = document.querySelector('.nav-dots');
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+                dot.addEventListener('click', () => showSlide(i));
+                container.appendChild(dot);
+            }
+        }
+
+        function updateNavDots() {
+            document.querySelectorAll('.nav-dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentSlide);
+            });
+        }
+
+        createNavDots();
+    </script>
+</body>
+</html>
